@@ -1,120 +1,117 @@
-
-## Algorithmic Trading Strategy
+# CAPM Analysis
 
 ## Introduction
 
-In this assignment, you will develop an algorithmic trading strategy by incorporating financial metrics to evaluate its profitability. This exercise simulates a real-world scenario where you, as part of a financial technology team, need to present an improved version of a trading algorithm that not only executes trades but also calculates and reports on the financial performance of those trades.
+In this assignment, you will explore the foundational concepts of the Capital Asset Pricing Model (CAPM) using historical data for AMD and the S&P 500 index. This exercise is designed to provide a hands-on approach to understanding how these models are used in financial analysis to assess investment risks and returns.
 
 ## Background
 
-Following a successful presentation to the Board of Directors, you have been tasked by the Trading Strategies Team to modify your trading algorithm. This modification should include tracking the costs and proceeds of trades to facilitate a deeper evaluation of the algorithm’s profitability, including calculating the Return on Investment (ROI).
-
-After meeting with the Trading Strategies Team, you were asked to include costs, proceeds, and return on investments metrics to assess the profitability of your trading algorithm.
+The CAPM provides a framework to understand the relationship between systematic risk and expected return, especially for stocks. This model is critical for determining the theoretically appropriate required rate of return of an asset, assisting in decisions about adding assets to a diversified portfolio.
 
 ## Objectives
 
-1. **Load and Prepare Data:** Open and run the starter code to create a DataFrame with stock closing data.
-
-2. **Implement Trading Algorithm:** Create a simple trading algorithm based on daily price changes.
-
-3. **Customize Trading Period:** Choose your entry and exit dates.
-
-4. **Report Financial Performance:** Analyze and report the total profit or loss (P/L) and the ROI of the trading strategy.
-
-5. **Implement a Trading Strategy:** Implement a trading strategy and analyze the total updated P/L and ROI. 
-
-6. **Discussion:** Summarise your finding.
-
+1. **Load and Prepare Data:** Import and prepare historical price data for AMD and the S&P 500 to ensure it is ready for detailed analysis.
+2. **CAPM Implementation:** Focus will be placed on applying the CAPM to examine the relationship between AMD's stock performance and the overall market as represented by the S&P 500.
+3. **Beta Estimation and Analysis:** Calculate the beta of AMD, which measures its volatility relative to the market, providing insights into its systematic risk.
+4. **Results Interpretation:** Analyze the outcomes of the CAPM application, discussing the implications of AMD's beta in terms of investment risk and potential returns.
 
 ## Instructions
 
 ### Step 1: Data Loading
 
-Start by running the provided code cells in the "Data Loading" section to generate a DataFrame containing AMD stock closing data. This will serve as the basis for your trading decisions. First, create a data frame named `amd_df` with the given closing prices and corresponding dates. 
+- We are using the `quantmod` package to directly load financial data from Yahoo Finance without the need to manually download and read from a CSV file.
+- `quantmod` stands for "Quantitative Financial Modelling Framework". It was developed to aid the quantitative trader in the development, testing, and deployment of statistically based trading models.
+- Make sure to install the `quantmod` package by running `install.packages("quantmod")` in the R console before proceeding.
 
-```r
-# Load data from CSV file
-amd_df <- read.csv("AMD.csv")
-# Convert the date column to Date type and Adjusted Close as numeric
-amd_df$date <- as.Date(amd_df$Date)
-amd_df$close <- as.numeric(amd_df$Adj.Close)
-amd_df <- amd_df[, c("date", "close")]
+```{r load-data}
+# Set start and end dates
+start_date <- as.Date("2019-05-20")
+end_date <- as.Date("2024-05-20")
+
+# Load data for AMD, S&P 500, and the 1-month T-Bill (DTB4WK)
+amd_data <- getSymbols("AMD", src = "yahoo", from = start_date, to = end_date, auto.assign = FALSE)
+gspc_data <- getSymbols("^GSPC", src = "yahoo", from = start_date, to = end_date, auto.assign = FALSE)
+rf_data <- getSymbols("DTB4WK", src = "FRED", from = start_date, to = end_date, auto.assign = FALSE)
+
+# Convert Adjusted Closing Prices and DTB4WK to data frames
+amd_df <- data.frame(Date = index(amd_data), AMD = as.numeric(Cl(amd_data)))
+gspc_df <- data.frame(Date = index(gspc_data), GSPC = as.numeric(Cl(gspc_data)))
+rf_df <- data.frame(Date = index(rf_data), RF = as.numeric(rf_data[,1]))  # Accessing the first column of rf_data
+
+# Merge the AMD, GSPC, and RF data frames on the Date column
+df <- merge(amd_df, gspc_df, by = "Date")
+df <- merge(df, rf_df, by = "Date")
 ```
 
-#### Plotting the Data
-Plot the closing prices over time to visualize the price movement.
-```r
-plot(amd_df$date, amd_df$close,'l')
+#### Data Processing 
+```{r data}
+colSums(is.na(df))
+# Fill N/A RF data
+df <- df %>%
+  fill(RF, .direction = "down") 
 ```
 
-### Step 2: Trading Algorithm
-Implement the trading algorithm as per the instructions. You should initialize necessary variables, and loop through the dataframe to execute trades based on the set conditions.
+### Step 2: CAPM Analysis
 
-- Initialize Columns: Start by ensuring dataframe has columns 'trade_type', 'costs_proceeds' and 'accumulated_shares'.
-- Change the algorithm by modifying the loop to include the cost and proceeds metrics for buys of 100 shares. Make sure that the algorithm checks the following conditions and executes the strategy for each one:
-  - If the previous price = 0, set 'trade_type' to 'buy', and set the 'costs_proceeds' column to the current share price multiplied by a `share_size` value of 100. Make sure to take the negative value of the expression so that the cost reflects money leaving an account. Finally, make sure to add the bought shares to an `accumulated_shares` variable.
-  - Otherwise, if the price of the current day is less than that of the previous day, set the 'trade_type' to 'buy'. Set the 'costs_proceeds' to the current share price multiplied by a `share_size` value of 100.
-  - You will not modify the algorithm for instances where the current day’s price is greater than the previous day’s price or when it is equal to the previous day’s price.
-  - If this is the last day of trading, set the 'trade_type' to 'sell'. In this case, also set the 'costs_proceeds' column to the total number in the `accumulated_shares` variable multiplied by the price of the last day.
+The Capital Asset Pricing Model (CAPM) is a financial model that describes the relationship between systematic risk and expected return for assets, particularly stocks. It is widely used to determine a theoretically appropriate required rate of return of an asset, to make decisions about adding assets to a well-diversified portfolio.
+
+#### The CAPM Formula
+The formula for CAPM is given by:
+
+\[ E(R_i) = R_f + \beta_i (E(R_m) - R_f) \]
+
+Where:
+
+- \( E(R_i) \) is the expected return on the capital asset,
+- \( R_f \) is the risk-free rate,
+- \( \beta_i \) is the beta of the security, which represents the systematic risk of the security,
+- \( E(R_m) \) is the expected return of the market.
 
 
 
-```r
-# Initialize columns for trade type, cost/proceeds, and accumulated shares in amd_df
-amd_df$trade_type <- NA
-amd_df$costs_proceeds <- NA  # Corrected column name
-amd_df$accumulated_shares <- 0  # Initialize if needed for tracking
+#### CAPM Model Daily Estimation
 
-# Initialize variables for trading logic
-previous_price <- 0
-share_size <- 100
-accumulated_shares <- 0
+- **Calculate Returns**: First, we calculate the daily returns for AMD and the S&P 500 from their adjusted closing prices. This should be done by dividing the difference in prices between two consecutive days by the price at the beginning of the period.
+$$
+\text{Daily Return} = \frac{\text{Today's Price} - \text{Previous Trading Day's Price}}{\text{Previous Trading Day's Price}}
+$$
 
-for (i in 1:nrow(amd_df)) {
-# Fill your code here
-}
+```{r return}
+df <- df %>%
+  mutate(
+    AMD_Return = (AMD - lag(AMD))/lag(AMD), 
+    GSPC_Return = (GSPC - lag(GSPC))/lag(GSPC),
+  ) %>%
+  na.omit()
 ```
 
+- **Calculate Risk-Free Rate**: Calculate the daily risk-free rate by conversion of annual risk-free Rate. This conversion accounts for the compounding effect over the days of the year and is calculated using the formula:
+$$
+\text{Daily Risk-Free Rate} = \left(1 + \frac{\text{Annual Rate}}{100}\right)^{\frac{1}{360}} - 1
+$$
 
-### Step 3: Customize Trading Period
-- Define a trading period you wanted in the past five years 
-```r
-# Fill your code here
-```
+```{r riskfree}
+df <- df %>%
+  mutate(Daily_RF = (1 + RF/100)^(1/360) - 1)
 
-
-### Step 4: Run Your Algorithm and Analyze Results
-After running your algorithm, check if the trades were executed as expected. Calculate the total profit or loss and ROI from the trades.
-
-- Total Profit/Loss Calculation: Calculate the total profit or loss from your trades. This should be the sum of all entries in the 'costs_proceeds' column of your dataframe. This column records the financial impact of each trade, reflecting money spent on buys as negative values and money gained from sells as positive values.
-- Invested Capital: Calculate the total capital invested. This is equal to the sum of the 'costs_proceeds' values for all 'buy' transactions. Since these entries are negative (representing money spent), you should take the negative sum of these values to reflect the total amount invested.
-- ROI Formula: $$\text{ROI} = \left( \frac{\text{Total Profit or Loss}}{\text{Total Capital Invested}} \right) \times 100$$
-
-```r
-# Fill your code here
-```
-
-### Step 5: Profit-Taking Strategy or Stop-Loss Mechanisum (Choose 1)
-- Option 1: Implement a profit-taking strategy that you sell half of your holdings if the price has increased by a certain percentage (e.g., 20%) from the average purchase price.
-- Option 2: Implement a stop-loss mechanism in the trading strategy that you sell half of your holdings if the stock falls by a certain percentage (e.g., 20%) from the average purchase price. You don't need to buy 100 stocks on the days that the stop-loss mechanism is triggered.
-
-
-```r
-# Fill your code here
+view(df)
 ```
 
 
-### Step 6: Summarize Your Findings
-- Did your P/L and ROI improve over your chosen period?
-- Relate your results to a relevant market event and explain why these outcomes may have occurred.
+- **Calculate Excess Returns**: Compute the excess returns for AMD and the S&P 500 by subtracting the daily risk-free rate from their respective returns.
 
-
-```r
-# Fill your code here and Disucss
+```{r excess return}
+df <- df %>%
+  mutate(AMD_Excess = AMD_Return - Daily_RF,
+         GSPC_Excess = GSPC_Return - Daily_RF
+    )
+view(df) 
 ```
 
-Sample Discussion: On Wednesday, December 6, 2023, AMD CEO Lisa Su discussed a new graphics processor designed for AI servers, with Microsoft and Meta as committed users. The rise in AMD shares on the following Thursday suggests that investors believe in the chipmaker's upward potential and market expectations; My first strategy earned X dollars more than second strategy on this day, therefore providing a better ROI.
 
+- **Perform Regression Analysis**: Using linear regression, we estimate the beta (\(\beta\)) of AMD relative to the S&P 500. Here, the dependent variable is the excess return of AMD, and the independent variable is the excess return of the S&P 500. Beta measures the sensitivity of the stock's returns to fluctuations in the market.
 
-
-
+```{r lm}
+capm_model = lm(AMD_Excess ~ GSPC_Excess, data = df)
+summary(capm_model)
+```
